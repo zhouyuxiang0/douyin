@@ -3,7 +3,7 @@
 #  🎬 dy-cli 一键安装脚本
 #  用法: bash setup.sh
 # ═══════════════════════════════════════════════════════
-set -e
+set -euo pipefail
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -85,12 +85,12 @@ else
     fail "dy 命令安装失败"
 fi
 
-# ── 6. 安装 Playwright Chromium ──────────────────────
-info "安装 Playwright Chromium (首次需要下载)..."
-if $PYTHON -m playwright install chromium 2>/dev/null; then
-    success "Playwright Chromium 已安装"
+# ── 6. 检查已安装的 Google Chrome ──────────────────────
+info "检查 Google Chrome 启动..."
+if python -m dy_cli.utils.browser; then
+    success "Google Chrome 启动正常"
 else
-    warn "Playwright Chromium 安装失败，稍后手动运行: playwright install chromium"
+    fail "无法启动 Google Chrome，请安装 Chrome 后重新运行；不再下载专用 Chromium"
 fi
 
 # ── 7. 生成激活脚本 ──────────────────────────────────

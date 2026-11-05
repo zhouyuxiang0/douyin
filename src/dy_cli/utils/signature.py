@@ -11,6 +11,8 @@ import random
 import string
 from urllib.parse import urlencode
 
+from dy_cli.utils.browser import launch_chrome
+
 # ------------------------------------------------------------------
 # 基础参数生成（不需要 JS 签名的请求）
 # ------------------------------------------------------------------
@@ -109,7 +111,7 @@ async def get_sign_page():
 
     from playwright.async_api import async_playwright
     pw = await async_playwright().start()
-    browser = await pw.chromium.launch(headless=True)
+    browser = await launch_chrome(pw, headless=True)
     context = await browser.new_context()
     page = await context.new_page()
     await page.goto("https://www.douyin.com/", wait_until="domcontentloaded")

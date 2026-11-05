@@ -50,7 +50,8 @@ douyin/
 | 用户资料 | API | `dy profile SEC_USER_ID` |
 | 直播信息 | API | `dy live info ROOM_ID` |
 | 直播录制 | API + ffmpeg | `dy live record ROOM_ID` |
-| **发布视频/图文** | Playwright | `dy publish -t 标题 -c 描述 -v 视频` |
+| **发布视频/图文** | Playwright | `dy publish`（视频支持独立双封面、检查、草稿续发） |
+| **核验发布结果** | 只读作品列表 | `dy publish-verify publication.json` |
 | **扫码登录** | Playwright | `dy login` |
 | **数据看板** | Playwright | `dy analytics` |
 | **通知消息** | Playwright | `dy notifications` |
@@ -131,8 +132,10 @@ dy live record ROOM_ID --quality HD1
 
 ```bash
 pip install playwright
-playwright install chromium
+python -m dy_cli.utils.browser  # 检查已安装的 Google Chrome，实际启动后自动关闭
 ```
+
+所有 CLI 与附带脚本统一使用系统 Google Chrome（`channel="chrome"`）；请先安装 Chrome。无需下载 Playwright 专用 Chromium，也不使用其缓存目录。`playwright.chromium_path` 是未生效的旧配置，已从默认配置移除；旧值保留时忽略。
 
 ### 登录
 
@@ -146,21 +149,26 @@ Cookie 存储位置: `~/.dy/cookies/{account}.json`
 
 ### 发布
 
+视频发布前读取 [references/publishing.md](references/publishing.md)。优先通过 CLI 完成独立横竖封面、标题全文、真实话题、可见范围、发布前预览及结果核验，复用已有登录。封面可由独立图片提供，分别适配4:3和3:4；不要默认从视频取帧或直接自动裁切同一张截图。
+
 ```bash
-# 视频
-dy publish -t "标题" -c "描述" -v video.mp4
-dy publish -t "标题" -c "描述" -v video.mp4 --tags 旅行 --tags 美食
-
-# 图文
-dy publish -t "标题" -c "描述" -i img1.jpg -i img2.jpg
-
-# 选项
-dy publish ... --visibility 仅自己可见     # 私密
-dy publish ... --schedule "2026-03-16T08:00:00+08:00"  # 定时
-dy publish ... --thumbnail cover.jpg       # 封面
-dy publish ... --headless                  # 无头模式
-dy publish ... --dry-run                   # 预览不发布
+dy publish -t "已确认标题" --content-file description.txt -v final.mp4 \
+  --tags 心理学 --tags 科普 --visibility 公开 \
+  --thumbnail-horizontal cover-4x3.png --thumbnail-vertical cover-3x4.png \
+  --receipt publication.json --review --json-output
 ```
+
+- `--dry-run`：仅本地参数预览，不上传。
+- `--review`：上传配置后保存截图并暂停；核对后从 stdin 输入 `publish` 提交或 `save` 暂存。
+- `--prepare-only`：上传配置并验证保存草稿，不发布。
+- `--resume publication.json`：恢复原草稿和参数，不重复上传。
+- `dy publish-verify publication.json --json-output`：只读查线上状态并更新本地凭据，不重发。
+
+提交前按当前项目/用户要求对齐标题、全文、话题、实际封面和设置；不要额外添加未确认的文案或把发布前检查变成重复索要已有授权。只有已核实的 `published` 才能报告已发布，审核中和未知结果分别报告。详情API为空时不能重发，应核对作品管理和实际作品。
+
+图文仍可使用 `dy publish -t "标题" -c "描述" -i img1.jpg -i img2.jpg`；新的视频核验保证不覆盖图文旧流程。当前新版视频路径不支持定时，明确报错，不自动改成立即发布。
+
+用户要求归档时，读取 [references/archiving.md](references/archiving.md)，依据项目已有的保留/删除约定执行，发布本身不自动触发清理。
 
 ### 数据看板
 

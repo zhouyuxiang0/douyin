@@ -1,59 +1,9 @@
-# Claude Code 集成指南
+# AI 工具调用 dy
 
-将 dy-cli 作为 Claude Code / Cursor 的技能使用。
+先按 [Windows 安装说明](../README.md#windows-安装)安装定制版 CLI，重启 AI 工具以刷新 PATH。任何能执行本机终端命令的助手都可以调用 `dy`；不需要改写知识视频制作技能或增加 MCP 服务。
 
-## 方式一：作为 OpenClaw Skill
+操作约定见 [SKILL.md](../SKILL.md)。需要发布时再读取[发布指南](../references/publishing.md)，归档依照[项目保留约定](../references/archiving.md)。在命令中使用 `--json-output` 获取[结构化结果](../SCHEMA.md)。
 
-```bash
-# 复制到技能目录
-cp -r douyin ~/.openclaw/skills/douyin
-```
+只在用户授权范围内执行发布、互动或文件清理。安装验证仅检查命令版本、帮助和本机 Chrome，扫码登录由用户完成；不要用真实投稿或互动测试安装是否成功。
 
-Claude Code 会自动读取 `SKILL.md` 并使用对应工具。
-
-## 方式二：直接在 Claude Code 中使用
-
-在项目中激活环境后，Claude Code 可以直接调用 `dy` 命令：
-
-```bash
-source activate.sh
-
-# Claude Code 可以执行这些命令
-dy search "关键词"
-dy trending
-dy download URL
-dy publish -t "标题" -c "描述" -v video.mp4
-```
-
-## 配置文件
-
-`~/.dy/config.json` 配置示例：
-
-```json
-{
-  "api": {
-    "cookie_file": "~/.dy/cookies/default.json",
-    "proxy": "",
-    "timeout": 30
-  },
-  "playwright": {
-    "headless": true,
-    "chromium_path": "",
-    "slow_mo": 0
-  },
-  "default": {
-    "account": "default",
-    "engine": "auto",
-    "output": "table",
-    "download_dir": "~/Downloads/douyin"
-  }
-}
-```
-
-## 提示
-
-- 对于 AI 调用，建议使用 `--json-output`：stdout 只有一个 JSON 信封（成功 `{ok: true, data}` / 失败 `{ok: false, error: {code, message}}`），进度提示在 stderr，约定见 [SCHEMA.md](../SCHEMA.md)
-- 先 `dy status --json-output` 检查 `data.authenticated`，再执行需要登录的操作；`dy login --json-output` 在已登录时不会交互询问
-- 无人值守场景建议 `dy config set playwright.headless true`，避免弹出浏览器窗口
-- 发布前使用 `--dry-run` 预览
-- 批量操作时注意加延时，避免触发风控
+使用源码 ZIP 安装时，AI 可以直接调用 `.venv\Scripts\dy.exe`，不依赖虚拟环境是否已在当前终端激活。用户级 uv 安装则先通过 `Get-Command dy` 核对路径。

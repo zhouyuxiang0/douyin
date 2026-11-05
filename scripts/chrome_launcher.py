@@ -1,33 +1,28 @@
 """
-Chrome/Chromium 生命周期管理。
+Google Chrome 生命周期管理。
 
 Usage:
-    python scripts/chrome_launcher.py               # 启动 (Playwright Chromium)
+    python scripts/chrome_launcher.py               # 启动 Google Chrome
     python scripts/chrome_launcher.py --headless     # 无头模式
-    python scripts/chrome_launcher.py --kill         # 关闭
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
-import os
-import signal
-import subprocess
-import sys
+from dy_cli.utils.browser import launch_chrome
 
 
 async def launch_chromium(headless: bool = False):
-    """使用 Playwright 启动 Chromium。"""
+    """使用 Playwright 启动隔离的 Google Chrome。"""
     from playwright.async_api import async_playwright
 
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=headless)
+        browser = await launch_chrome(pw, headless=headless)
         context = await browser.new_context()
         page = await context.new_page()
         await page.goto("https://www.douyin.com/", wait_until="domcontentloaded")
 
-        endpoint = browser._impl_obj._browser.ws_endpoint if hasattr(browser._impl_obj, '_browser') else "N/A"
-        print(f"[dy] Chromium 已启动")
+        print(f"[dy] Google Chrome 已启动")
         print(f"[dy] Headless: {headless}")
         print(f"[dy] 按 Ctrl+C 关闭")
 
@@ -38,27 +33,18 @@ async def launch_chromium(headless: bool = False):
             pass
         finally:
             await browser.close()
-            print("[dy] Chromium 已关闭")
+            print("[dy] Google Chrome 已关闭")
 
 
 def kill_chromium():
-    """关闭所有 Playwright Chromium 进程。"""
-    try:
-        if sys.platform == "darwin":
-            subprocess.run(["pkill", "-f", "chromium"], capture_output=True)
-        elif sys.platform == "win32":
-            subprocess.run(["taskkill", "/F", "/IM", "chromium.exe"], capture_output=True)
-        else:
-            subprocess.run(["pkill", "-f", "chromium"], capture_output=True)
-        print("[dy] Chromium 进程已终止")
-    except Exception as e:
-        print(f"[dy] 关闭失败: {e}")
+    # Never kill the user's unrelated Chrome windows.
+    raise SystemExit("请在启动终端按 Ctrl+C，仅关闭本次 Chrome；--kill 不再全局终止浏览器。")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Chrome/Chromium 管理")
+    parser = argparse.ArgumentParser(description="Google Chrome 管理")
     parser.add_argument("--headless", action="store_true", help="无头模式")
-    parser.add_argument("--kill", action="store_true", help="关闭 Chromium")
+    parser.add_argument("--kill", action="store_true", help="已停用：请在启动终端按 Ctrl+C")
     args = parser.parse_args()
 
     if args.kill:

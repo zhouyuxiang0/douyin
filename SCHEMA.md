@@ -22,7 +22,7 @@
 
 ## 失败
 
-退出码为 `1`。`--json-output` 模式下 stdout 输出错误信封，否则 stderr 输出 `✗ message`：
+一般错误退出码为 `1`。`--json-output` 模式下 stdout 输出错误信封，否则 stderr 输出 `✗ message`。视频发布或核验尚未完全确认时也可能返回退出码 `2`，并保留带业务状态的 `data` 信封；此时不得因 `ok: true` 而认定已发布，更不能自动重发。
 
 ```json
 {
@@ -43,7 +43,7 @@
 | `not_live` | 直播间未开播 |
 | `missing_dependency` | 缺少外部依赖（如 ffmpeg） |
 
-代码中的定义：`dy_cli.utils.envelope.ERROR_CODES`。
+以上是 `dy_cli.utils.envelope.ERROR_CODES` 中的通用错误。视频发布还会返回 `invalid_receipt`、`unsafe_receipt`、`run_in_progress`、`missing_covers`、`unsupported_schedule`、`media_changed`、`cover_changed` 等具体流程错误；消费者应保留未知错误码并停止自动提交。
 
 ## 支持 `--json-output` 的命令
 
@@ -56,10 +56,14 @@
 | | `login` | `{authenticated: true, method, account, cookie_file}`，`method` ∈ `existing` / `browser` / `qrcode`；已登录时不再交互询问 |
 | | `logout` | `{logged_out, account, cookie_file}` |
 | | `account list` | `[{name, cookie_file, has_cookie, is_default}]` |
-| 变更 | `publish` | `{status: "published", title}`；`--dry-run` 时为预览参数 |
+| 变更 | `publish`（视频） | 发布凭据，包含 `status`、`spec`、提交标记及可用的作品/核验信息；`--dry-run` 时为预览参数 |
+| 核验 | `publish-verify` | 更新后的发布凭据；不上传、不重发，但会写入本地凭据文件 |
+| 变更 | `publish`（图文） | 旧流程结果；其 `published` 返回值不提供视频流程的核验保证 |
 | | `like` `favorite` `comment` `follow` | `{action, aweme_id \| sec_user_id, success: true}` |
 
 `detail --comments --json-output` 返回 `{detail, comments}`；评论加载失败时 `comments` 为 `null` 并在 stderr 给出警告。
+
+视频凭据的 `status` 包括 `prepared`（已保存草稿）、`submitting`、`reviewing`、`published`、`submitted_unverified`、`verification_failed`，也可能保留 `unknown` 或 `unavailable` 平台状态。只有 `published` 表示已通过 CLI 的发布核验；截图视觉质量仍需审看。详见[发布与核验](references/publishing.md)。
 
 ## 尚无 `--json-output` 的命令
 

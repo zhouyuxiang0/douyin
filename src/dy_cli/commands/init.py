@@ -1,12 +1,13 @@
 """
 dy init — 新用户引导式初始化。
 
-自动完成: 检查环境 → 安装 Chromium → 配置代理 → 登录。
+自动完成: 检查环境 → 检查 Google Chrome → 配置代理 → 登录。
 """
 from __future__ import annotations
 
+import asyncio
 import os
-import subprocess
+import platform
 import sys
 
 import click
@@ -20,15 +21,15 @@ from dy_cli.utils.output import console, error, info, status, success, warning
 @click.option("--proxy", default=None, help="代理地址 (如 http://127.0.0.1:7897)")
 @click.option("--no-proxy", is_flag=True, help="不使用代理 (在国内网络)")
 @click.option("--skip-login", is_flag=True, help="跳过登录步骤")
-@click.option("--skip-chromium", is_flag=True, help="跳过 Chromium 安装")
-def init(proxy, no_proxy, skip_login, skip_chromium):
+@click.option("--skip-browser", "--skip-chromium", "skip_browser", is_flag=True, help="跳过 Google Chrome 启动检查（旧参数名兼容）")
+def init(proxy, no_proxy, skip_login, skip_browser):
     """引导新用户完成初始化。"""
     console.print()
     console.print(Panel(
         "[bold]欢迎使用 🎬 dy-cli — 抖音命令行工具[/]\n\n"
         "接下来将引导你完成初始化设置:\n"
         "  [dim]1.[/] 检查系统环境\n"
-        "  [dim]2.[/] 安装 Playwright Chromium\n"
+        "  [dim]2.[/] 检查 Google Chrome\n"
         "  [dim]3.[/] 配置网络\n"
         "  [dim]4.[/] 登录抖音账号",
         title="🚀 初始化向导",
@@ -40,7 +41,7 @@ def init(proxy, no_proxy, skip_login, skip_chromium):
     console.rule("[bold]Step 1/4 — 环境检查[/]")
     console.print()
 
-    status("系统", f"{sys.platform} {os.uname().machine}")
+    status("系统", f"{sys.platform} {platform.machine()}")
     status("Python", f"{sys.version.split()[0]}")
 
     # Check playwright
@@ -59,28 +60,16 @@ def init(proxy, no_proxy, skip_login, skip_chromium):
 
     console.print()
 
-    # ── Step 2: 安装 Chromium ─────────────────────────────
-    console.rule("[bold]Step 2/4 — 安装 Playwright Chromium[/]")
+    # ── Step 2: 检查 Google Chrome ─────────────────────────────
+    console.rule("[bold]Step 2/4 — 检查 Google Chrome[/]")
     console.print()
 
-    if skip_chromium:
-        info("已跳过 Chromium 安装")
-    elif pw_ok and _check_chromium():
-        success("Chromium 已安装")
+    if skip_browser:
+        info("已跳过 Google Chrome 启动检查")
+    elif pw_ok and _check_chrome():
+        success("Google Chrome 启动正常")
     else:
-        info("正在安装 Playwright Chromium (首次运行需要)...")
-        try:
-            subprocess.run(
-                [sys.executable, "-m", "playwright", "install", "chromium"],
-                check=True,
-                capture_output=True,
-            )
-            success("Chromium 安装完成")
-        except subprocess.CalledProcessError as e:
-            warning(f"Chromium 安装失败: {e.stderr.decode()[:200]}")
-            info("请手动运行: playwright install chromium")
-        except FileNotFoundError:
-            warning("playwright 未安装，请先运行: pip install playwright")
+        raise click.ClickException("无法启动 Google Chrome；请安装 Chrome 并运行 python -m dy_cli.utils.browser 查看错误。")
 
     console.print()
 
@@ -154,7 +143,7 @@ def init(proxy, no_proxy, skip_login, skip_chromium):
                 info("稍后使用 [bold]dy login[/] 重试")
             except Exception as e:
                 error(f"登录失败: {e}")
-                info("请确保已安装 Chromium: playwright install chromium")
+                info("请确保 Google Chrome 已安装；运行 python -m dy_cli.utils.browser 检查")
 
     # ── 完成 ─────────────────────────────────────────────
     console.print()
@@ -186,14 +175,11 @@ def _check_playwright() -> bool:
         return False
 
 
-def _check_chromium() -> bool:
-    """检查 Playwright Chromium 是否已安装。"""
+def _check_chrome() -> bool:
+    """Actually launch Chrome; installer dry-run does not prove browser availability."""
+    from dy_cli.utils.browser import check_chrome
     try:
-        result = subprocess.run(
-            [sys.executable, "-m", "playwright", "install", "--dry-run", "chromium"],
-            capture_output=True,
-            text=True,
-        )
-        return result.returncode == 0
+        asyncio.run(check_chrome())
+        return True
     except Exception:
         return False

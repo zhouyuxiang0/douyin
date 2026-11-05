@@ -11,6 +11,7 @@ import argparse
 import asyncio
 import os
 import sys
+from dy_cli.utils.browser import launch_chrome
 
 
 async def login(account: str = "default"):
@@ -23,7 +24,7 @@ async def login(account: str = "default"):
     cookie_file = os.path.join(cookie_dir, f"{account}.json")
 
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=False)
+        browser = await launch_chrome(pw, headless=False)
         context = await browser.new_context()
         page = await context.new_page()
 

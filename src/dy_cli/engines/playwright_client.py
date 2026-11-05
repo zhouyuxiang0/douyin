@@ -12,6 +12,7 @@ import sys
 from datetime import datetime
 
 from dy_cli.utils import config
+from dy_cli.utils.browser import launch_chrome
 
 
 def _log(msg: str) -> None:
@@ -24,16 +25,16 @@ class PlaywrightError(Exception):
 
 
 def _run_async(coro):
-    """在同步上下文中运行异步函数。"""
+    """Run once. Only loop discovery is allowed to fall back, never the operation itself."""
     try:
         loop = asyncio.get_event_loop()
-        if loop.is_running():
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                return pool.submit(asyncio.run, coro).result()
-        return loop.run_until_complete(coro)
     except RuntimeError:
         return asyncio.run(coro)
+    if loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(asyncio.run, coro).result()
+    return loop.run_until_complete(coro)
 
 
 class PlaywrightClient:
@@ -81,7 +82,7 @@ class PlaywrightClient:
     async def _check_login_async(self) -> bool:
         from playwright.async_api import async_playwright
         async with async_playwright() as pw:
-            browser = await pw.chromium.launch(headless=True)
+            browser = await launch_chrome(pw, headless=True)
             try:
                 context = await browser.new_context(storage_state=self.cookie_file)
                 page = await context.new_page()
@@ -115,7 +116,7 @@ class PlaywrightClient:
     async def _login_async(self) -> bool:
         from playwright.async_api import async_playwright
         async with async_playwright() as pw:
-            browser = await pw.chromium.launch(headless=False, slow_mo=self.slow_mo)
+            browser = await launch_chrome(pw, headless=False, slow_mo=self.slow_mo)
             context = await browser.new_context()
             page = await context.new_page()
             await page.goto(self.CREATOR_URL, wait_until="domcontentloaded")
@@ -127,7 +128,7 @@ class PlaywrightClient:
             try:
                 await page.wait_for_url(
                     "**/creator-micro/**",
-                    timeout=120000,  # 2 minutes
+                    timeout=1800000,  # 30 minutes for interactive QR login
                 )
                 await page.wait_for_timeout(3000)
             except Exception:
@@ -168,183 +169,21 @@ class PlaywrightClient:
     # Publish video
     # ------------------------------------------------------------------
 
-    def publish_video(
-        self,
-        title: str,
-        content: str,
-        video_path: str,
-        tags: list[str] | None = None,
-        visibility: str = "公开",
-        schedule_at: str | None = None,
-        thumbnail_path: str | None = None,
-    ) -> dict:
-        """发布视频到抖音。"""
-        if not os.path.isfile(video_path):
-            raise PlaywrightError(f"视频文件不存在: {video_path}")
-        if not self.cookie_exists():
-            raise PlaywrightError("未登录，请先运行: dy login")
+    def publish_video(self, title, content, video_path, tags=None, visibility="公开",
+                      schedule_at=None, thumbnail_path=None, *, thumbnail_horizontal=None,
+                      thumbnail_vertical=None, expected_account=None, receipt_path=None,
+                      review=False, prepare_only=False):
+        """Verified video path; direct Python callers receive the same guarantees as dy publish."""
+        from pathlib import Path
 
-        return _run_async(
-            self._publish_video_async(
-                title, content, video_path, tags, visibility, schedule_at, thumbnail_path
-            )
-        )
-
-    async def _publish_video_async(
-        self,
-        title: str,
-        content: str,
-        video_path: str,
-        tags: list[str] | None,
-        visibility: str,
-        schedule_at: str | None,
-        thumbnail_path: str | None,
-    ) -> dict:
-        from playwright.async_api import async_playwright
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch(
-                headless=self.headless,
-                slow_mo=self.slow_mo,
-            )
-            context = await browser.new_context(storage_state=self.cookie_file)
-            page = await context.new_page()
-
-            try:
-                # Navigate to upload page
-                await page.goto(self.UPLOAD_URL, wait_until="domcontentloaded")
-                await page.wait_for_timeout(3000)
-
-                # Check login
-                if await page.get_by_text("扫码登录").count() > 0:
-                    raise PlaywrightError("Cookie 已失效，请重新登录: dy login")
-
-                # Upload video file
-                upload_input = page.locator('input[type="file"]').first
-                await upload_input.set_input_files(video_path)
-                _log(f"[dy] 正在上传视频: {os.path.basename(video_path)}")
-
-                # Wait for upload to complete (look for editor/title input)
-                await page.wait_for_timeout(5000)
-
-                # Wait for upload progress to finish
-                for _ in range(120):  # max 10 minutes
-                    # Check if upload is complete
-                    ready = await page.locator('[class*="title"] input, [class*="title"] textarea, [contenteditable="true"]').count()
-                    if ready > 0:
-                        break
-                    await page.wait_for_timeout(5000)
-
-                # Fill title — find the title input
-                title_input = page.locator('[class*="title"] input, [class*="title"] textarea').first
-                try:
-                    await title_input.wait_for(timeout=5000)
-                    await title_input.clear()
-                    await title_input.fill(title)
-                except Exception:
-                    # Try contenteditable
-                    pass
-
-                # Fill description/content
-                content_editor = page.locator('[contenteditable="true"]').first
-                try:
-                    await content_editor.wait_for(timeout=5000)
-                    await content_editor.click()
-
-                    # Type content
-                    full_text = content
-                    if tags:
-                        tag_text = " ".join(f"#{t}" for t in tags)
-                        full_text = f"{content} {tag_text}"
-
-                    await page.keyboard.type(full_text, delay=50)
-                except Exception:
-                    pass
-
-                # Handle visibility
-                if visibility == "私密" or visibility == "仅自己可见":
-                    try:
-                        perm_btn = page.locator('text=谁可以看').first
-                        if await perm_btn.count() > 0:
-                            await perm_btn.click()
-                            await page.wait_for_timeout(500)
-                            private_opt = page.locator('text=仅自己可见').first
-                            if await private_opt.count() > 0:
-                                await private_opt.click()
-                    except Exception:
-                        pass
-
-                # Handle schedule
-                if schedule_at:
-                    await self._set_schedule_time(page, schedule_at)
-
-                # Set thumbnail if provided
-                if thumbnail_path and os.path.isfile(thumbnail_path):
-                    try:
-                        cover_btn = page.locator('text=选择封面').first
-                        if await cover_btn.count() > 0:
-                            await cover_btn.click()
-                            await page.wait_for_timeout(1000)
-                            cover_upload = page.locator('input[type="file"]').last
-                            await cover_upload.set_input_files(thumbnail_path)
-                            await page.wait_for_timeout(2000)
-                    except Exception:
-                        pass
-
-                # Handle cover (required by Douyin)
-                await self._select_cover(page)
-
-                # Handle visibility
-                if visibility == "私密" or visibility == "仅自己可见":
-                    try:
-                        private_opt = page.locator('text=仅自己可见').first
-                        if await private_opt.count() > 0:
-                            await private_opt.click(force=True)
-                    except Exception:
-                        pass
-
-                # Click the EXACT "发布" button (not "高清发布")
-                await page.wait_for_timeout(2000)
-                published = await page.evaluate("""() => {
-                    const btns = document.querySelectorAll('button');
-                    for (const b of btns) {
-                        if (b.textContent.trim() === '发布' && !b.disabled) {
-                            b.click();
-                            return true;
-                        }
-                    }
-                    return false;
-                }""")
-
-                if published:
-                    await page.wait_for_timeout(5000)
-                    # Check for error toast
-                    toast = await page.evaluate(
-                        '()=>Array.from(document.querySelectorAll("[class*=toast]"))'
-                        '.map(t=>t.textContent.trim()).filter(Boolean)'
-                    )
-                    if toast and "封面" in str(toast):
-                        _log("[dy] 封面设置失败，请手动设置封面后发布")
-                    elif toast and "成功" in str(toast):
-                        _log("[dy] 发布成功!")
-                    else:
-                        # Wait for navigation to manage page
-                        for _ in range(15):
-                            await page.wait_for_timeout(2000)
-                            if "manage" in page.url:
-                                _log("[dy] 发布成功!")
-                                break
-                        else:
-                            _log("[dy] 发布请求已提交")
-                else:
-                    _log("[dy] 未找到发布按钮，内容已填写，请手动确认")
-                    if not self.headless:
-                        await page.wait_for_timeout(30000)
-
-                return {"status": "published", "title": title}
-
-            finally:
-                await context.storage_state(path=self.cookie_file)
-                await browser.close()
+        from dy_cli.engines.publish_flow import VideoPublisher, make_spec
+        spec = make_spec(title=title, content=content, video=video_path, tags=tags or [],
+                         visibility=visibility, thumbnail=thumbnail_path,
+                         thumbnail_horizontal=thumbnail_horizontal, thumbnail_vertical=thumbnail_vertical,
+                         account=self.account, expected_account=expected_account, schedule=schedule_at)
+        receipt_path = receipt_path or str(Path(video_path).resolve().with_suffix(".publish.json"))
+        return _run_async(VideoPublisher(self, spec, receipt_path, review=review,
+                                        prepare_only=prepare_only).run())
 
     async def _select_cover(self, page):
         """选择视频封面（必填项）。"""
@@ -431,7 +270,8 @@ class PlaywrightClient:
     ) -> dict:
         from playwright.async_api import async_playwright
         async with async_playwright() as pw:
-            browser = await pw.chromium.launch(
+            browser = await launch_chrome(
+                pw,
                 headless=self.headless,
                 slow_mo=self.slow_mo,
             )
@@ -574,7 +414,7 @@ class PlaywrightClient:
     async def _get_analytics_async(self, page_size: int) -> dict:
         from playwright.async_api import async_playwright
         async with async_playwright() as pw:
-            browser = await pw.chromium.launch(headless=True)
+            browser = await launch_chrome(pw, headless=True)
             context = await browser.new_context(storage_state=self.cookie_file)
             page = await context.new_page()
 
@@ -664,7 +504,7 @@ class PlaywrightClient:
     async def _get_notifications_async(self) -> dict:
         from playwright.async_api import async_playwright
         async with async_playwright() as pw:
-            browser = await pw.chromium.launch(headless=True)
+            browser = await launch_chrome(pw, headless=True)
             context = await browser.new_context(storage_state=self.cookie_file)
             page = await context.new_page()
 
@@ -710,7 +550,7 @@ class PlaywrightClient:
     async def _get_comments_async(self, aweme_id: str, count: int) -> list[dict]:
         from playwright.async_api import async_playwright
         async with async_playwright() as pw:
-            browser = await pw.chromium.launch(headless=True)
+            browser = await launch_chrome(pw, headless=True)
             context = await browser.new_context(
                 storage_state=self.cookie_file,
                 viewport={"width": 1920, "height": 1080},
@@ -790,7 +630,7 @@ class PlaywrightClient:
     async def _interact_async(self, aweme_id: str, action: str, **kwargs) -> dict:
         from playwright.async_api import async_playwright
         async with async_playwright() as pw:
-            browser = await pw.chromium.launch(headless=True)
+            browser = await launch_chrome(pw, headless=True)
             context = await browser.new_context(
                 storage_state=self.cookie_file,
                 viewport={"width": 1920, "height": 1080},

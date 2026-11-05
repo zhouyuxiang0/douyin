@@ -1,27 +1,55 @@
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-
+permissions:
+  contents: read
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
+      fail-fast: false
       matrix:
+        os: [windows-latest, ubuntu-latest]
         python-version: ["3.10", "3.12"]
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
+      - name: Build and install the distribution
         run: |
-          pip install -e ".[dev]" 2>/dev/null || pip install -e .
-          pip install pytest ruff
-      - name: Lint
-        run: ruff check src/ tests/
-      - name: Test
-        run: pytest tests/ -v
+          python -m pip install build pytest ruff
+          python -m build
+          python -m pip install dist/*.whl
+      - name: CLI and unit checks
+        run: |
+          dy --version
+          dy publish --help
+          python -m ruff check src tests
+          python -m pytest tests -q
+      - name: Local Chrome integration on Windows
+        if: matrix.os == 'windows-latest' && matrix.python-version == '3.12'
+        env:
+          DY_LOCAL_BROWSER_TESTS: "1"
+        run: |
+          python -m dy_cli.utils.browser
+          python -m pytest tests/test_publish_browser.py -q
+      - name: Windows source installer in a path with spaces
+        if: matrix.os == 'windows-latest' && matrix.python-version == '3.12'
+        run: |
+          python - <<'PY'
+          import os
+          import shutil
+          import subprocess
+          from pathlib import Path
+          target = Path(os.environ['RUNNER_TEMP']) / 'dy setup 中文'
+          shutil.copytree('.', target, ignore=shutil.ignore_patterns('.git', '.venv', 'dist', '__pycache__', '.pytest_cache', '.ruff_cache'))
+          subprocess.run(['cmd', '/d', '/c', 'setup.bat'], cwd=target, check=True)
+          PY

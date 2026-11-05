@@ -1,79 +1,49 @@
-<p align="center">
-  <h1 align="center">🎬 dy-cli</h1>
-  <p align="center">抖音命令行工具 — 搜索、下载、发布、互动、热榜、直播、数据分析，对 AI Agent 友好。</p>
-</p>
+# dy-cli 定制版
 
-<p align="center">
-  <a href="https://pypi.org/project/dy-cli/"><img src="https://img.shields.io/pypi/v/dy-cli.svg" alt="PyPI"></a>
-  <a href="https://github.com/Youhai020616/douyin/actions"><img src="https://github.com/Youhai020616/douyin/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://pypi.org/project/dy-cli/"><img src="https://img.shields.io/badge/python-≥3.10-blue.svg" alt="Python"></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
-</p>
+基于 [Youhai020616/douyin](https://github.com/Youhai020616/douyin) 的 `5267065` 提交维护，当前版本 **0.2.3+zhou.1**。保留搜索、下载、热榜、直播、互动和数据接口，加入实际使用中的视频发布改进与 Windows 兼容处理。
 
-<p align="center">
-  <a href="#安装">安装</a> •
-  <a href="#快速开始">快速开始</a> •
-  <a href="#命令">命令</a> •
-  <a href="#配置">配置</a> •
-  <a href="#面向-ai-agent-的结构化输出">Agent 输出</a> •
-  <a href="./LICENSE">许可证</a>
-</p>
+本仓库仅提供 dy。原项目的普通 PyPI 安装不会带上这些定制改动，请从本仓库安装。
 
----
+## Windows 安装
 
-<p align="center">
-  <img src="./demo.gif" alt="dy-cli 演示" width="800">
-</p>
+准备 **Google Chrome、Git 和 uv**。建议使用 Python 3.12，uv 可在本机缺少该版本时安装。uv 安装方式见[官方说明](https://docs.astral.sh/uv/getting-started/installation/)。在 PowerShell 执行：
 
-## 安装
-
-```bash
-pip install dy-cli
-playwright install chromium   # 登录 / 发布 / 互动需要浏览器
-dy init                       # 引导：环境检查 → 配置代理 → 扫码登录（一次即可）
+```powershell
+uv tool install --python 3.12 "git+https://github.com/zhouyuxiang0/douyin.git"
+uv tool update-shell
 ```
 
-源码安装：
+重新打开终端和 AI 工具，让它们读取更新后的 PATH，然后检查：
 
-```bash
-git clone https://github.com/Youhai020616/douyin.git
-cd douyin && bash setup.sh   # 创建 .venv、安装依赖与 Chromium、注册 dy 命令
+```powershell
+Get-Command dy
+dy --version
+dy --help
+dy init --no-proxy --skip-login
 ```
 
-> **依赖说明**
-> - Python ≥ 3.10
-> - Playwright Chromium — 登录、发布、互动等浏览器操作需要；`dy init` / `setup.sh` 也会自动安装
-> - `ffmpeg` — 可选，仅 `dy live record` 录制直播需要（macOS: `brew install ffmpeg`）
+版本应包含 `0.2.3+zhou.1`。初始化会实际启动并关闭系统 Chrome，不下载 Playwright 专用 Chromium；最后一条命令会保存本机配置，但不会登录或发布。已有 dy 时先确认 `Get-Command dy` 指向哪个环境，再在确认要替换后给安装命令加 `--force`，避免调用到旧版。
 
-## 快速开始
+由用户运行 `dy login` 完成扫码，然后使用 `dy status --json-output` 检查登录状态。每台电脑独立登录；仓库不包含 Cookie、发布会话或个人配置。
 
-```bash
-dy init                                 # 初始化 + 扫码登录（一次即可）
-dy search "美食"                         # 搜索 → 结果自动缓存
-dy read 1                               # 查看第 1 条结果（短索引）
-dy dl 1                                 # 下载第 1 条（无水印）
-dy like 1                               # 点赞第 1 条
-dy trending                             # 热榜 Top 50
-dy live list                            # 推荐直播间列表
-dy publish -t "标题" -c "描述" -v video.mp4   # 发布视频
-```
+如果使用下载的源码 ZIP，装好 Python 3.10+ 和 Chrome 后，在解压目录运行 `setup.bat`。它会创建独立 `.venv`；之后直接运行 `.venv\Scripts\dy.exe`，或在命令提示符中执行 `.venv\Scripts\activate.bat`。macOS/Linux 的源码安装入口仍为 `bash setup.sh`。
 
-## 功能特性
+## 交给其他电脑上的 AI
 
-- 🔍 **搜索** — 关键词搜索，支持排序 / 时间 / 类型筛选，支持用户搜索
-- 📥 **下载** — 无水印视频与图文，带进度条，支持画质选择与按用户批量下载
-- 📝 **发布** — 视频与图文发布，支持标签、封面、定时、可见范围
-- 🔥 **热榜** — 实时热搜 Top 50，支持自动刷新监看
-- 📺 **直播** — 直播间列表、直播信息、拉流地址、ffmpeg 录制
-- 💬 **互动** — 点赞、收藏、评论、关注（Playwright）
-- 📊 **数据看板** — 通过 XHR 拦截获取创作者数据
-- 👤 **主页** — 用户信息、作品列表
-- 🔢 **短索引** — `dy search → dy read 1 → dy like 1 → dy dl 1`，无需复制 ID
-- 📦 **导出** — `dy search "AI" -o results.csv`（JSON / CSV / YAML）
-- 🔐 **登录** — 扫码登录 + 浏览器 Cookie 自动提取
-- 👥 **多账号** — Cookie 按账号隔离存储
-- 🤖 **Agent 友好** — `--json-output` 输出统一 JSON 信封，成功与失败都可机器解析；stdout 只有数据，进度提示走 stderr
-- 🛡️ **反检测** — 高斯抖动延迟、指数退避、验证码冷却
+将本仓库链接和下面这段话交给能运行本机终端的 AI：
+
+> 按 README 安装这个 dy-cli 定制版，核对命令路径、版本和 Chrome 启动。复用本机已有依赖；已有 dy 时先说明将替换哪个版本。完成后让我扫码登录，不执行发布、评论、点赞或关注操作。操作前阅读仓库的 SKILL.md 和相关发布说明。
+
+AI 可以直接调用 `dy`，无需额外的 MCP 服务。操作约定在 [SKILL.md](SKILL.md)；机器可读结果使用 `--json-output`。需要助手自动发现 dy 操作指南时，可用其技能安装功能安装本仓库自带的 `douyin` 技能，这与 CLI 安装是两个步骤。
+
+## 本版改动
+
+- 独立横竖封面、准确话题选择、完整文案回读和可见范围检查。
+- 发布前预览、持久化凭据、草稿恢复、作品结果核验与防重复提交。
+- 等待封面异步保存稳定，保留预览后变化检测。
+- 所有浏览器入口使用系统 Chrome；保留 30 分钟扫码等待，不全局终止其他浏览器窗口。
+- Windows 使用原生字节范围文件锁，macOS/Linux 保留 flock；统一跨平台系统信息与 UTF-8 凭据读取。
+- 当前视频流程明确拒绝尚未验证的定时发布；图文发布仍沿用旧流程，不继承视频流程的全部核验保证。
 
 ## 命令
 
@@ -116,14 +86,13 @@ dy live record ROOM_ID                   # 使用 ffmpeg 录制
 
 ### 发布
 
-```bash
-dy publish -t "标题" -c "描述" -v video.mp4                         # 发布视频
-dy publish -t "标题" -c "描述" -i img1.jpg -i img2.jpg              # 发布图文
-dy publish -t "标题" -v v.mp4 --tags AI --visibility 仅自己可见      # 私密 + 标签
-dy publish -t "标题" -v v.mp4 --thumbnail cover.jpg                  # 自定义封面
-dy publish -t "标题" -v v.mp4 --schedule "2026-03-20T08:00:00+08:00" # 定时发布
-dy pub -t "标题" -v v.mp4 --dry-run                                  # 仅预览，不发布
+```powershell
+dy publish -t "已确认标题" --content-file description.txt -v final.mp4 --thumbnail-horizontal cover-4x3.png --thumbnail-vertical cover-3x4.png --tags 科普 --visibility 公开 --receipt publication.json --review --json-output
+dy publish --resume publication.json --review --json-output
+dy publish-verify publication.json --json-output
 ```
+
+`--dry-run` 仅检查本地参数，`--prepare-only` 会上传并保存草稿。视频必须提供双封面或通用 `--thumbnail`；当前视频流程不支持定时发布，传入定时参数会停止。发布结果未知时只核验，不重复投稿。完整说明见[发布与核验](references/publishing.md)。
 
 ### 互动
 
@@ -195,7 +164,7 @@ dy like 1 --json-output            # 变更类命令也返回结构化结果
 ```json
 {
   "api":        { "cookie_file": "~/.dy/cookies/default.json", "proxy": "", "timeout": 30 },
-  "playwright": { "headless": false, "chromium_path": "", "slow_mo": 0 },
+  "playwright": { "headless": false, "slow_mo": 0 },
   "default":    { "account": "default", "engine": "auto", "output": "table", "download_dir": "~/Downloads/douyin" }
 }
 ```
@@ -212,49 +181,18 @@ dy config get api.proxy                            # 读取单项
 dy config reset                                    # 恢复默认
 ```
 
-## 架构
+## 验证与维护
 
-| 引擎 | 负责 | 技术 |
-|------|------|------|
-| **API Client** | 搜索、下载、热榜、直播、主页 | httpx + 逆向 Web API（X-Bogus 签名） |
-| **Playwright** | 发布、登录、数据看板、点赞、评论 | Chromium 浏览器自动化 |
-
-```mermaid
-flowchart LR
-    CLI[dy 命令] --> API[API Client<br/>httpx + X-Bogus]
-    CLI --> PW[Playwright<br/>Chromium]
-    API -->|搜索 / 下载 / 热榜 / 直播| DY[抖音 Web]
-    PW -->|登录 / 发布 / 互动 / 看板| DY
-    API -.->|评论接口失效时回退| PW
-    Cookie[(~/.dy/cookies)] --> API & PW
+```powershell
+python -m pip install -e . pytest ruff build
+python -m pytest tests -q
+python -m build
 ```
 
-## 平台支持
+真实本机 Chrome 测试使用合成本地页面，不连接抖音、不需要账号：PowerShell 先执行 `$env:DY_LOCAL_BROWSER_TESTS="1"`，再运行 `python -m pytest tests/test_publish_browser.py -q`。macOS/Linux 可在命令前加 `DY_LOCAL_BROWSER_TESTS=1`。
 
-macOS ✅ &nbsp; Linux ✅ &nbsp; Windows ✅
+CI 对 Windows 和 Linux 运行安装、命令及回归测试；浏览器测试只验证本地页面中的封面、话题与等待逻辑。登录、平台实时接口和真实发布仍需要目标电脑上的实际验证；测试通过不代表以后抖音页面不会变化。
 
-## 开发
+## 来源与许可
 
-```bash
-git clone https://github.com/Youhai020616/douyin.git && cd douyin
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e . && pip install pytest ruff
-ruff check src/ tests/      # 代码检查
-pytest tests/ -v            # 单元测试
-```
-
-CI 在 Python 3.10 / 3.12 上运行 lint 与测试。
-
-## 文档
-
-- [使用指南](./docs/cli-guide.md) — 安装、初始化、各命令详解
-- [Claude Code 集成](./docs/claude-code-integration.md) — 作为 AI Agent Skill 使用
-- [结构化输出约定](./SCHEMA.md)
-
-## 免责声明
-
-本项目基于抖音网页端逆向接口与浏览器自动化实现，目前处于 **Alpha** 阶段，仅供学习与研究使用。接口可能随平台更新而失效；自动化操作存在账号风控风险。请遵守抖音用户协议，使用后果自行承担。
-
-## 许可证
-
-[MIT](./LICENSE)
+保留原项目 [MIT 许可](LICENSE) 和作者声明。本分支的发布流程、浏览器整合与 Windows 适配采用同一许可。上游项目链接仅用于溯源，安装本定制版请使用本仓库地址。

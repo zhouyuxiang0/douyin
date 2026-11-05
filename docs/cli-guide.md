@@ -1,74 +1,6 @@
-# 🎬 dy-cli 使用指南
+# dy-cli 使用指南
 
-抖音命令行工具 — 一条命令搞定搜索、下载、发布、互动、热榜、直播、数据分析。
-
-## 安装
-
-### 前提条件
-
-- Python 3.10+
-- Playwright Chromium (setup.sh 会自动安装)
-- ffmpeg (可选，直播录制需要: `brew install ffmpeg`)
-
-### pip 安装
-
-```bash
-pip install dy-cli
-playwright install chromium
-dy init
-```
-
-### 一键安装（源码）
-
-```bash
-git clone https://github.com/Youhai020616/douyin.git
-cd douyin
-bash setup.sh
-```
-
-`setup.sh` 会自动完成:
-- ✅ 检测 Python 版本
-- ✅ 创建虚拟环境 `.venv`
-- ✅ 安装所有依赖 (`httpx`, `playwright`, `click`, `rich`)
-- ✅ 安装 Playwright Chromium
-- ✅ 注册 `dy` 命令
-- ✅ 生成 `activate.sh` 快捷激活脚本
-
-### 手动安装（源码）
-
-```bash
-git clone https://github.com/Youhai020616/douyin.git
-cd douyin
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-playwright install chromium
-dy --version
-```
-
-## 快速开始
-
-### 首次使用
-
-```bash
-source activate.sh
-dy init
-```
-
-`dy init` 引导你完成:
-1. ✅ 环境检查 (Python, Playwright, httpx)
-2. ✅ 安装 Playwright Chromium
-3. ✅ 配置代理 (国内直接回车跳过)
-4. ✅ 扫码登录抖音
-
-### 以后每次使用
-
-```bash
-source activate.sh
-dy search "关键词"
-```
-
----
+安装和环境准备统一见 [README](../README.md#windows-安装)。以下示例在 `dy` 命令可用后执行。
 
 ## 命令详解
 
@@ -114,27 +46,7 @@ dy download URL -q 720                     # 指定画质 (auto/best/worst/2160/
 
 ### 发布
 
-```bash
-# 视频发布
-dy publish -t "标题" -c "描述" -v video.mp4
-
-# 图文发布
-dy publish -t "标题" -c "描述" -i img1.jpg -i img2.jpg
-
-# 完整选项
-dy publish -t "旅行日记" -c "巴厘岛真美" \
-  -v trip.mp4 \
-  --tags 旅行 --tags 巴厘岛 \
-  --visibility 公开 \
-  --schedule "2026-03-16T08:00:00+08:00" \
-  --thumbnail cover.jpg
-
-# 预览
-dy publish -t "测试" -c "测试" -v test.mp4 --dry-run
-
-# 从文件读取描述
-dy publish -t "深度文章" --content-file desc.txt -v video.mp4
-```
+使用本定制版的[发布与核验指南](../references/publishing.md)。视频需要独立双封面或通用封面；定时发布尚不支持，结果未知时不得重发。
 
 ### 热榜
 

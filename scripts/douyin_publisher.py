@@ -12,6 +12,7 @@ import argparse
 import asyncio
 import os
 import sys
+from dy_cli.utils.browser import launch_chrome
 
 
 async def publish_video(
@@ -32,7 +33,7 @@ async def publish_video(
         return False
 
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=headless)
+        browser = await launch_chrome(pw, headless=headless)
         context = await browser.new_context(storage_state=cookie_file)
         page = await context.new_page()
 
@@ -109,7 +110,7 @@ async def publish_images(
         return False
 
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=headless)
+        browser = await launch_chrome(pw, headless=headless)
         context = await browser.new_context(storage_state=cookie_file)
         page = await context.new_page()
 

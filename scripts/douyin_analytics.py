@@ -14,6 +14,7 @@ import csv
 import json
 import os
 import sys
+from dy_cli.utils.browser import launch_chrome
 
 
 async def get_analytics(account: str = "default", csv_file: str | None = None):
@@ -26,7 +27,7 @@ async def get_analytics(account: str = "default", csv_file: str | None = None):
         return None
 
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=True)
+        browser = await launch_chrome(pw, headless=True)
         context = await browser.new_context(storage_state=cookie_file)
         page = await context.new_page()
 

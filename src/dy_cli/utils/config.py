@@ -19,7 +19,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "playwright": {
         "headless": False,
-        "chromium_path": "",
         "slow_mo": 0,
     },
     "default": {

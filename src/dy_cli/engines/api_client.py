@@ -22,6 +22,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 from dy_cli.utils import config
+from dy_cli.utils.browser import launch_chrome
 from dy_cli.utils.signature import (
     build_request_url,
     get_base_params,
@@ -591,7 +592,7 @@ class DouyinAPIClient:
             url = build_request_url(VIDEO_COMMENTS_URL, params)
 
             async with async_playwright() as pw:
-                browser = await pw.chromium.launch(headless=True)
+                browser = await launch_chrome(pw, headless=True)
                 context = await browser.new_context()
                 page = await context.new_page()
                 try:
