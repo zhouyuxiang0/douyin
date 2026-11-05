@@ -27,6 +27,8 @@ Usage:
 """
 from __future__ import annotations
 
+import sys
+
 import click
 
 from dy_cli import __version__
@@ -150,6 +152,10 @@ cli.add_command(config_group, "config")
 
 
 def main():
+    # Windows pipes inherit the ANSI codepage; AI clients need UTF-8 Chinese output.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure") and not stream.isatty():
+            stream.reconfigure(encoding="utf-8", errors=stream.errors)
     cli()
 
 

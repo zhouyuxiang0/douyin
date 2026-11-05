@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 
 import pytest
 from click.testing import CliRunner
@@ -12,6 +14,24 @@ from dy_cli.utils import config
 from dy_cli.utils.envelope import ERROR_CODES
 
 runner = CliRunner()
+
+
+@pytest.mark.parametrize("args,exit_code,channel,expected", [
+    (["publish", "--help"], 0, "stdout", "发布视频"),
+    (["publish", "-t", "x", "--json-output"], 1, "stdout", "必须提供视频"),
+    (["publish", "-t", "x"], 1, "stderr", "必须提供视频"),
+])
+def test_piped_cli_outputs_utf8_with_legacy_system_encoding(args, exit_code, channel, expected):
+    result = subprocess.run(
+        [sys.executable, "-m", "dy_cli.main", *args],
+        env={**os.environ, "PYTHONIOENCODING": "cp1252"},
+        capture_output=True, timeout=15,
+    )
+    assert result.returncode == exit_code, result.stderr.decode("utf-8", errors="replace")
+    output = getattr(result, channel).decode("utf-8")
+    assert expected in output
+    if "--json-output" in args:
+        assert json.loads(output)["error"]["code"] == "invalid_argument"
 
 
 @pytest.fixture

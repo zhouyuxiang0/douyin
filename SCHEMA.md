@@ -7,6 +7,7 @@
 - **stdout** 只承载数据：TTY 模式下是表格，`--json-output` 模式下是且仅是一个 JSON 文档
 - **stderr** 承载进度、状态与错误提示（`ℹ` / `✓` / `⚠` / `✗`）
 - 因此 `dy trending --json-output | jq .data` 可直接使用
+- CLI 重定向或管道中的 stdout/stderr 使用 UTF-8，包括 Windows；调用方按 UTF-8 解码。
 
 ## 成功
 
